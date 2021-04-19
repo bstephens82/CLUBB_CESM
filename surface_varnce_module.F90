@@ -15,6 +15,9 @@ module surface_varnce_module
   subroutine calc_surface_varnce( upwp_sfc, vpwp_sfc, wpthlp_sfc, wprtp_sfc, & 
                              um_sfc, vm_sfc, Lscale_up_sfc, wpsclrp_sfc, & 
                              wp2_splat_sfc, tau_zm_sfc, &
+!+++ARH
+                             depth_pos_wpthlp, &
+!---ARH
                              wp2_sfc, up2_sfc, vp2_sfc, & 
                              thlp2_sfc, rtp2_sfc, rtpthlp_sfc, & 
                              sclrp2_sfc, & 
@@ -86,8 +89,17 @@ module surface_varnce_module
     ! Logical for Andre et al., 1978 parameterization.
     logical, parameter :: l_andre_1978 = .false.
 
+!+++ARH
+    logical, parameter :: l_vary_convect_depth = .false.
+
+    real( kind = core_rknd ) :: &
+      a_const  ! Coefficient in front of wp2_sfc, up2_sfc, and vp2_sfc
+!---ARH
+
     real( kind = core_rknd ), parameter ::  & 
-      a_const = 1.8_core_rknd, & 
+!+++ARH
+      !a_const = 1.8_core_rknd, & 
+!---ARH
       z_const = one, & ! Defined height of 1 meter                [m]
       ! Vince Larson increased ufmin to stabilize arm_97.  24 Jul 2007
 !      ufmin = 0.0001_core_rknd, &
@@ -111,7 +123,11 @@ module surface_varnce_module
       vm_sfc,        & ! Surface v wind component, <v>          [m/s]
       Lscale_up_sfc, & ! Upward component of Lscale at surface  [m] 
       wp2_splat_sfc, & ! Tendency of <w'^2> due to splatting of eddies at zm(1) [m^2/s^3]
-      tau_zm_sfc       ! Turbulent dissipation time at level zm(1)  [s]
+!+++ARH
+      !tau_zm_sfc       ! Turbulent dissipation time at level zm(1)  [s]
+      tau_zm_sfc,    & ! Turbulent dissipation time at level zm(1)  [s]
+      depth_pos_wpthlp  ! Thickness of the layer near the surface with wpthlp > 0 [m]
+!---ARH
 
     real( kind = core_rknd ), intent(in), dimension(sclr_dim) ::  & 
       wpsclrp_sfc    ! Passive scalar flux, <w'sclr'>|_sfc   [units m/s]
@@ -153,6 +169,14 @@ module surface_varnce_module
       zeta     ! Dimensionless height z_const/Lngth, where z_const = 1 m.  [-]
 
     integer :: i ! Loop index
+
+!+++ARH
+    if ( .not. l_vary_convect_depth ) then
+       a_const = 1.8_core_rknd
+    else
+       a_const = 0.6_core_rknd 
+    end if
+!---ARH
 
     if ( l_andre_1978 ) then
 
@@ -354,13 +378,27 @@ module surface_varnce_module
 
        ! Compute wstar following Andre et al., 1976
        if ( wpthlp_sfc > zero ) then
-          wstar = ( one/T0 * grav * wpthlp_sfc * z_const )**(one_third)
+!+++ARH
+          !wstar = ( one/T0 * grav * wpthlp_sfc * z_const )**(one_third)
+          if ( .not. l_vary_convect_depth ) then
+             wstar = ( one/T0 * grav * wpthlp_sfc * z_const )**(one_third)
+          else
+             wstar = ( one/T0 * grav * wpthlp_sfc * 0.2_core_rknd * depth_pos_wpthlp )**(one_third)
+          end if
+!---ARH
        else
           wstar = zero
        endif
 
        ! Surface friction velocity following Andre et al. 1978
-       uf = sqrt( ustar2 + 0.3_core_rknd * wstar * wstar )
+!+++ARH
+       !uf = sqrt( ustar2 + 0.3_core_rknd * wstar * wstar )
+       if ( .not. l_vary_convect_depth ) then
+          uf = sqrt( ustar2 + 0.3_core_rknd * wstar * wstar )
+       else
+          uf = sqrt( ustar2 + wstar * wstar )
+       end if
+!---ARH
        uf = max( ufmin, uf )
 
        ! Compute estimate for surface second order moments
@@ -373,14 +411,30 @@ module surface_varnce_module
        !         2) The surface correlation of rt & thl is 0.5.
        ! Brian Griffin; February 2, 2008.
 
-       thlp2_sfc = 0.4_core_rknd * a_const * ( wpthlp_sfc / uf )**2
+!+++ARH
+       !thlp2_sfc = 0.4_core_rknd * a_const * ( wpthlp_sfc / uf )**2
+       if ( .not. l_vary_convect_depth )  then
+          thlp2_sfc = 0.4_core_rknd * a_const * ( wpthlp_sfc / uf )**2
+          rtp2_sfc = 0.4_core_rknd * a_const * ( wprtp_sfc / uf )**2
+          rtpthlp_sfc = 0.2_core_rknd * a_const &
+                     * ( wpthlp_sfc / uf ) * ( wprtp_sfc / uf )
+       else
+          thlp2_sfc = ( wpthlp_sfc / uf )**2 / ( max_mag_correlation_flux**2 * a_const )
+          rtp2_sfc = ( wprtp_sfc / uf )**2 / ( max_mag_correlation_flux**2 * a_const )
+          rtpthlp_sfc = max_mag_correlation_flux * sqrt( thlp2_sfc * rtp2_sfc )
+       end if
+!---ARH
        thlp2_sfc = max( thl_tol**2, thlp2_sfc )
 
-       rtp2_sfc = 0.4_core_rknd * a_const * ( wprtp_sfc / uf )**2
+!+++ARH
+       !rtp2_sfc = 0.4_core_rknd * a_const * ( wprtp_sfc / uf )**2
+!---ARH
        rtp2_sfc = max( rt_tol**2, rtp2_sfc )
 
-       rtpthlp_sfc = 0.2_core_rknd * a_const &
-                     * ( wpthlp_sfc / uf ) * ( wprtp_sfc / uf )
+!+++ARH
+       !rtpthlp_sfc = 0.2_core_rknd * a_const &
+       !              * ( wpthlp_sfc / uf ) * ( wprtp_sfc / uf )
+!---ARH
 
        ! Add effect of vertical compression of eddies on horizontal gustiness.
        ! First, ensure that wp2_sfc does not make the correlation 
