@@ -1412,7 +1412,7 @@ module advance_windm_edsclrm_module
 
     else   ! implemented in a host model.
 
-      xm_tndcy = xm_forcing
+      xm_tndcy(1:gr%nz) = xm_forcing(1:gr%nz)
 
     endif
 
