@@ -2527,7 +2527,7 @@ module advance_xm_wpxp_module
        ! and ( iiPDF_type == iiPDF_ADG1 .or. iiPDF_type == iiPDF_new_hybrid )
 
        ! Coriolis term for <u> and <v>
-       if ( l_implemented ) then
+       if ( .not. l_implemented ) then
 
           ! Only compute the Coriolis term if the model is running on its own,
           ! and is not part of a larger, host model.
@@ -2552,8 +2552,8 @@ module advance_xm_wpxp_module
 
        else ! implemented in a host model
 
-          um_tndcy = zero
-          vm_tndcy = zero
+          um_tndcy = um_forcing
+          vm_tndcy = vm_forcing
 
        endif ! .not. l_implemented
 

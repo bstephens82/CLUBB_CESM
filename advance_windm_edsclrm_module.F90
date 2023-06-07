@@ -1356,7 +1356,7 @@ module advance_windm_edsclrm_module
 
     ! --- Begin Code ---
 
-    if ( l_implemented ) then
+    if ( .not. l_implemented ) then
       ! Only compute the Coriolis term if the model is running on it's own,
       ! and is not part of a larger, host model.
 
@@ -1395,7 +1395,7 @@ module advance_windm_edsclrm_module
 
       end select
 
-      xm_tndcy(1:gr%nz) = & !xm_gf(1:gr%nz) + xm_cf(1:gr%nz)  &
+      xm_tndcy(1:gr%nz) = xm_gf(1:gr%nz) + xm_cf(1:gr%nz)  &
                             + xm_forcing(1:gr%nz)
 
       if ( l_stats_samp ) then
@@ -1412,7 +1412,7 @@ module advance_windm_edsclrm_module
 
     else   ! implemented in a host model.
 
-      xm_tndcy = 0.0_core_rknd
+      xm_tndcy = xm_forcing
 
     endif
 
