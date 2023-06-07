@@ -2527,12 +2527,12 @@ module advance_xm_wpxp_module
        ! and ( iiPDF_type == iiPDF_ADG1 .or. iiPDF_type == iiPDF_new_hybrid )
 
        ! Coriolis term for <u> and <v>
-       if ( .not. l_implemented ) then
+       if ( l_implemented ) then
 
           ! Only compute the Coriolis term if the model is running on its own,
           ! and is not part of a larger, host model.
-          um_tndcy = um_forcing - fcor * ( vg - vm )
-          vm_tndcy = vm_forcing + fcor * ( ug - um )
+          um_tndcy = um_forcing !- fcor * ( vg - vm )
+          vm_tndcy = vm_forcing !+ fcor * ( ug - um )
 
           if ( l_stats_samp ) then
 
